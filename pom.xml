@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    pom.xml = Project Object Model. Maven reads this file to know:
+      1. WHAT the project is (groupId / artifactId / version  ==  its "coordinates")
+      2. WHICH libraries it needs (dependencies) - Maven downloads them for you
+      3. HOW to build it (plugins)
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        PARENT POM: we "inherit" from Spring Boot's parent. It gives us:
+          - tested, compatible versions for hundreds of libraries (no need to write <version> on each)
+          - sensible plugin configuration (compiler, surefire for tests, etc.)
+        Spring Boot 3.x requires Java 17+, which matches this machine.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.4</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.taskflow</groupId>
+    <artifactId>taskflow</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>TaskFlow</name>
+    <description>Learning project: plain Java fundamentals + a Spring Boot 3 task management REST API</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- The project contains several classes with a main() method (Phase 1 Main, learning demos).
+             This tells the Spring Boot plugin which one starts the web application. -->
+        <start-class>com.taskflow.TaskFlowApplication</start-class>
+        <jjwt.version>0.12.6</jjwt.version>
+        <springdoc.version>2.6.0</springdoc.version>
+    </properties>
+
+    <dependencies>
+        <!-- "Starters" are curated bundles of dependencies. -->
+
+        <!-- REST controllers, embedded Tomcat server, JSON via Jackson -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- JPA (Java Persistence API) implemented by Hibernate + Spring Data repositories -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Bean Validation (@NotBlank, @Email, @Size ...) implemented by Hibernate Validator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Authentication / authorization framework (also brings BCryptPasswordEncoder) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Flyway: versioned SQL migrations (V1__..., V2__...) applied automatically at startup -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- Since Flyway 10 each database has its own module -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- JDBC drivers. 'runtime' scope = not needed to compile, only to run. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- H2 = in-memory database, used by the 'h2' profile and by tests (no PostgreSQL needed) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- JJWT: create and verify JSON Web Tokens -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Swagger UI + OpenAPI 3 documentation generated from our controllers -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- TESTING: JUnit 5, Mockito, AssertJ, MockMvc, JsonPath ... ('test' scope = not shipped) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Packages everything into one runnable "fat jar":  java -jar target/taskflow-1.0-SNAPSHOT.jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

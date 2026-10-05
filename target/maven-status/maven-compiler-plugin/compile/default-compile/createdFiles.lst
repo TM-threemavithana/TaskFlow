@@ -1,0 +1,8 @@
+com\taskflow\model\Priority.class
+com\taskflow\model\User.class
+com\taskflow\model\Project.class
+com\taskflow\model\TaskStatus.class
+com\taskflow\Main.class
+com\taskflow\event\TaskEventListener$1.class
+com\taskflow\pattern\SortingStrategyDemo$1.class
+com\taskflow\model\Task.class

@@ -1,0 +1,52 @@
+# ====================================================================================
+# DOCKER COMPOSE - orchestrates multiple containers
+#
+# This file defines TWO services:
+#   1. db:  PostgreSQL database
+#   2. app: our Spring Boot application
+#
+# Usage:
+#   docker-compose up -d          Start both services in detached mode
+#   docker-compose logs -f app    Follow the app logs
+#   docker-compose down           Stop and remove containers
+#   docker-compose down -v        Also remove the database volume (deletes data!)
+#
+# The app waits for the database to be healthy before starting (depends_on + healthcheck).
+# ====================================================================================
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: taskflow-db
+    environment:
+      POSTGRES_DB: taskflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      # Named volume: data persists across container restarts
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: taskflow-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/taskflow
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
