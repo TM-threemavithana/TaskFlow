@@ -12,6 +12,7 @@ import com.taskflow.exception.AccessDeniedException;
 import com.taskflow.exception.ResourceNotFoundException;
 import com.taskflow.model.Priority;
 import com.taskflow.model.TaskStatus;
+import com.taskflow.repository.ProjectMemberRepository;
 import com.taskflow.repository.ProjectRepository;
 import com.taskflow.repository.TaskRepository;
 import com.taskflow.repository.UserRepository;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Set;
 
 /**
  * Task service. Uses:
@@ -38,15 +41,18 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final ApplicationEventPublisher eventPublisher;   // Spring injects this automatically
 
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
                        UserRepository userRepository,
+                       ProjectMemberRepository projectMemberRepository,
                        ApplicationEventPublisher eventPublisher) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.projectMemberRepository = projectMemberRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -109,7 +115,9 @@ public class TaskService {
         if (projectId != null && !isAdmin && currentUserId != null) {
             Project project = projectRepository.findById(projectId)
                     .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId));
-            if (!project.isOwnedBy(currentUserId)) {
+            boolean isOwner = project.isOwnedBy(currentUserId);
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+            if (!isOwner && !isMember) {
                 throw new AccessDeniedException("You do not have access to this project's tasks");
             }
         }
@@ -119,7 +127,8 @@ public class TaskService {
         // If not admin, scope query at the database level to tasks accessible to the user
         if (!isAdmin && currentUserId != null) {
             if (projectId == null) {
-                spec = spec.and(TaskSpecifications.isAccessibleByUser(currentUserId, java.util.Collections.emptySet()));
+                Set<Long> memberProjectIds = projectMemberRepository.findProjectIdsByUserId(currentUserId);
+                spec = spec.and(TaskSpecifications.isAccessibleByUser(currentUserId, memberProjectIds));
             }
         }
 
@@ -209,7 +218,8 @@ public class TaskService {
         if (isAdmin) return;
         boolean isProjectOwner = task.getProject().isOwnedBy(userId);
         boolean isAssignee = task.isAssignedTo(userId);
-        if (!isProjectOwner && !isAssignee) {
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), userId);
+        if (!isProjectOwner && !isAssignee && !isMember) {
             throw new AccessDeniedException("You don't have access to this task");
         }
     }

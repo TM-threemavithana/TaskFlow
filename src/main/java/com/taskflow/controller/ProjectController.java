@@ -1,6 +1,8 @@
 package com.taskflow.controller;
 
 import com.taskflow.dto.PagedResponse;
+import com.taskflow.dto.ProjectMemberRequest;
+import com.taskflow.dto.ProjectMemberResponse;
 import com.taskflow.dto.ProjectRequest;
 import com.taskflow.dto.ProjectResponse;
 import com.taskflow.entity.Role;
@@ -16,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * Project CRUD endpoints.
@@ -84,5 +88,38 @@ public class ProjectController {
         boolean isAdmin = principal.getRole() == Role.ADMIN;
         projectService.deleteProject(id, principal.getUserId(), isAdmin);
         return ResponseEntity.noContent().build();   // 204 No Content
+    }
+
+    // ======================== Project Members ========================
+
+    @PostMapping("/{projectId}/members")
+    @Operation(summary = "Add a member to a project")
+    public ResponseEntity<ProjectMemberResponse> addMember(
+            @PathVariable Long projectId,
+            @Valid @RequestBody ProjectMemberRequest request,
+            @AuthenticationPrincipal SecurityUser principal) {
+        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        ProjectMemberResponse response = projectService.addMember(projectId, request, principal.getUserId(), isAdmin);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{projectId}/members")
+    @Operation(summary = "List members of a project")
+    public ResponseEntity<List<ProjectMemberResponse>> getMembers(
+            @PathVariable Long projectId,
+            @AuthenticationPrincipal SecurityUser principal) {
+        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        return ResponseEntity.ok(projectService.getMembers(projectId, principal.getUserId(), isAdmin));
+    }
+
+    @DeleteMapping("/{projectId}/members/{userId}")
+    @Operation(summary = "Remove a member from a project")
+    public ResponseEntity<Void> removeMember(
+            @PathVariable Long projectId,
+            @PathVariable Long userId,
+            @AuthenticationPrincipal SecurityUser principal) {
+        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        projectService.removeMember(projectId, userId, principal.getUserId(), isAdmin);
+        return ResponseEntity.noContent().build();
     }
 }

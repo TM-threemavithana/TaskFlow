@@ -15,6 +15,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
 
+    /** Finds all projects accessible to a user (as owner or member), paginated. */
+    @Query("SELECT p FROM Project p WHERE p.owner.id = :userId OR p.id IN (SELECT pm.project.id FROM ProjectMember pm WHERE pm.user.id = :userId)")
+    Page<Project> findAccessibleProjects(@Param("userId") Long userId, Pageable pageable);
+
     /** Finds all projects owned by a user, paginated. */
     Page<Project> findByOwnerId(Long ownerId, Pageable pageable);
 

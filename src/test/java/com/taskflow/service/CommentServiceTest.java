@@ -10,6 +10,7 @@ import com.taskflow.entity.User;
 import com.taskflow.exception.AccessDeniedException;
 import com.taskflow.exception.ResourceNotFoundException;
 import com.taskflow.repository.CommentRepository;
+import com.taskflow.repository.ProjectMemberRepository;
 import com.taskflow.repository.TaskRepository;
 import com.taskflow.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,9 @@ class CommentServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ProjectMemberRepository projectMemberRepository;
 
     @InjectMocks
     private CommentService commentService;
@@ -115,6 +119,26 @@ class CommentServiceTest {
             assertNotNull(resp);
             assertEquals("Working on it.", resp.content());
             assertEquals(2L, resp.authorId());
+        }
+
+        @Test
+        @DisplayName("should create comment when author is project member")
+        void shouldCreateCommentByProjectMember() {
+            CommentRequest req = new CommentRequest("Member update");
+            when(taskRepository.findById(100L)).thenReturn(Optional.of(task));
+            when(projectMemberRepository.existsByProjectIdAndUserId(10L, 3L)).thenReturn(true);
+            when(userRepository.findById(3L)).thenReturn(Optional.of(stranger));
+            when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> {
+                Comment c = inv.getArgument(0);
+                c.setId(502L);
+                return c;
+            });
+
+            CommentResponse resp = commentService.createComment(100L, req, 3L, false);
+
+            assertNotNull(resp);
+            assertEquals("Member update", resp.content());
+            assertEquals(3L, resp.authorId());
         }
 
         @Test

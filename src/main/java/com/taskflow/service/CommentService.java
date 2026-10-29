@@ -10,6 +10,7 @@ import com.taskflow.entity.User;
 import com.taskflow.exception.AccessDeniedException;
 import com.taskflow.exception.ResourceNotFoundException;
 import com.taskflow.repository.CommentRepository;
+import com.taskflow.repository.ProjectMemberRepository;
 import com.taskflow.repository.TaskRepository;
 import com.taskflow.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -26,13 +27,16 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     public CommentService(CommentRepository commentRepository,
                           TaskRepository taskRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          ProjectMemberRepository projectMemberRepository) {
         this.commentRepository = commentRepository;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
+        this.projectMemberRepository = projectMemberRepository;
     }
 
     /**
@@ -115,7 +119,8 @@ public class CommentService {
         if (isAdmin) return;
         boolean isProjectOwner = task.getProject().isOwnedBy(userId);
         boolean isAssignee = task.isAssignedTo(userId);
-        if (!isProjectOwner && !isAssignee) {
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), userId);
+        if (!isProjectOwner && !isAssignee && !isMember) {
             throw new AccessDeniedException("You do not have access to this task's comments");
         }
     }
