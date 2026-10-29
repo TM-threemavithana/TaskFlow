@@ -44,6 +44,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/taskflow
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

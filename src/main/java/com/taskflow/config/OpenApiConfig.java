@@ -21,7 +21,7 @@ import org.springframework.context.annotation.Configuration;
 @OpenAPIDefinition(
     info = @Info(
         title = "TaskFlow API",
-        version = "1.0",
+        version = "1.0.0",
         description = "A task management REST API - built for learning Spring Boot 3, JPA, JWT security, and design patterns."
     )
 )

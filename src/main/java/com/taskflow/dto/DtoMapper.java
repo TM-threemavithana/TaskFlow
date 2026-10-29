@@ -1,6 +1,8 @@
 package com.taskflow.dto;
 
+import com.taskflow.entity.Comment;
 import com.taskflow.entity.Project;
+import com.taskflow.entity.ProjectMember;
 import com.taskflow.entity.Task;
 import com.taskflow.entity.User;
 
@@ -63,6 +65,34 @@ public final class DtoMapper {
                 task.getAssignee() != null ? task.getAssignee().getName() : null,
                 task.getCreatedAt(),
                 task.getUpdatedAt()
+        );
+    }
+
+    // ======================== Comment ========================
+
+    public static CommentResponse toCommentResponse(Comment comment) {
+        return new CommentResponse(
+                comment.getId(),
+                comment.getTask().getId(),
+                comment.getAuthor().getId(),
+                comment.getAuthor().getName(),
+                comment.getContent(),
+                comment.getCreatedAt(),
+                comment.getUpdatedAt()
+        );
+    }
+
+    // ======================== Project Member ========================
+
+    public static ProjectMemberResponse toProjectMemberResponse(ProjectMember member) {
+        return new ProjectMemberResponse(
+                member.getId(),
+                member.getProject().getId(),
+                member.getUser().getId(),
+                member.getUser().getName(),
+                member.getUser().getEmail(),
+                member.getRole(),
+                member.getCreatedAt()
         );
     }
 }

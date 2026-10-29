@@ -47,4 +47,22 @@ public final class TaskSpecifications {
         return (root, query, cb) ->
                 cb.like(cb.lower(root.get("title")), "%" + keyword.toLowerCase() + "%");
     }
+
+    /**
+     * Scopes task visibility to resources the given user has legitimate access to:
+     * - The user is the owner of the project (task.project.owner.id == userId), OR
+     * - The user is assigned to the task (task.assignee.id == userId), OR
+     * - The project is in the set of projects the user is a member of.
+     */
+    public static Specification<Task> isAccessibleByUser(Long userId, java.util.Collection<Long> memberProjectIds) {
+        return (root, query, cb) -> {
+            var ownerPredicate = cb.equal(root.get("project").get("owner").get("id"), userId);
+            var assigneePredicate = cb.equal(root.get("assignee").get("id"), userId);
+            if (memberProjectIds != null && !memberProjectIds.isEmpty()) {
+                var memberPredicate = root.get("project").get("id").in(memberProjectIds);
+                return cb.or(ownerPredicate, assigneePredicate, memberPredicate);
+            }
+            return cb.or(ownerPredicate, assigneePredicate);
+        };
+    }
 }

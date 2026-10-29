@@ -46,8 +46,15 @@ public class JwtTokenProvider {
     private final long expirationMs;
 
     public JwtTokenProvider(JwtProperties props) {
+        String secret = props.getSecret();
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT signing secret is not configured. Please set the APP_JWT_SECRET environment variable.");
+        }
         // Decode the Base64-encoded secret into raw bytes, then create an HMAC-SHA key.
-        byte[] keyBytes = Base64.getDecoder().decode(props.getSecret());
+        byte[] keyBytes = Base64.getDecoder().decode(secret);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret key must be at least 256 bits (32 bytes) long.");
+        }
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = props.getExpirationMs();
     }

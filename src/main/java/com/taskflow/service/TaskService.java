@@ -12,6 +12,7 @@ import com.taskflow.exception.AccessDeniedException;
 import com.taskflow.exception.ResourceNotFoundException;
 import com.taskflow.model.Priority;
 import com.taskflow.model.TaskStatus;
+import com.taskflow.repository.ProjectMemberRepository;
 import com.taskflow.repository.ProjectRepository;
 import com.taskflow.repository.TaskRepository;
 import com.taskflow.repository.UserRepository;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Set;
 
 /**
  * Task service. Uses:
@@ -38,15 +41,18 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final ApplicationEventPublisher eventPublisher;   // Spring injects this automatically
 
     public TaskService(TaskRepository taskRepository,
                        ProjectRepository projectRepository,
                        UserRepository userRepository,
+                       ProjectMemberRepository projectMemberRepository,
                        ApplicationEventPublisher eventPublisher) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.projectMemberRepository = projectMemberRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -85,56 +91,101 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    public TaskResponse getTask(Long id, Long currentUserId, boolean isAdmin) {
+        Task task = findTaskOrThrow(id);
+        checkTaskReadAccess(task, currentUserId, isAdmin);
+        return DtoMapper.toTaskResponse(task);
+    }
+
+    @Transactional(readOnly = true)
     public TaskResponse getTask(Long id) {
         Task task = findTaskOrThrow(id);
         return DtoMapper.toTaskResponse(task);
     }
 
     /**
-     * Filtered, sorted, paginated task listing.
+     * Filtered, sorted, paginated task listing scoped to user authorization.
      * STRATEGY PATTERN: each filter parameter adds a Specification to the WHERE clause.
      */
     @Transactional(readOnly = true)
     public PagedResponse<TaskResponse> getTasks(Long projectId, String status, String priority,
-                                                 Long assigneeId, String search, Pageable pageable) {
-        // Start with "no filter" (returns all tasks)
+                                                 Long assigneeId, String search,
+                                                 Long currentUserId, boolean isAdmin, Pageable pageable) {
+        // If filtering by a specific project, verify the user has access to that project
+        if (projectId != null && !isAdmin && currentUserId != null) {
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId));
+            boolean isOwner = project.isOwnedBy(currentUserId);
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+            if (!isOwner && !isMember) {
+                throw new AccessDeniedException("You do not have access to this project's tasks");
+            }
+        }
+
         Specification<Task> spec = Specification.where(null);
+
+        // If not admin, scope query at the database level to tasks accessible to the user
+        if (!isAdmin && currentUserId != null) {
+            if (projectId == null) {
+                Set<Long> memberProjectIds = projectMemberRepository.findProjectIdsByUserId(currentUserId);
+                spec = spec.and(TaskSpecifications.isAccessibleByUser(currentUserId, memberProjectIds));
+            }
+        }
 
         // Dynamically compose filters only for parameters that are present
         if (projectId != null) spec = spec.and(TaskSpecifications.hasProject(projectId));
-        if (status != null)    spec = spec.and(TaskSpecifications.hasStatus(TaskStatus.valueOf(status)));
-        if (priority != null)  spec = spec.and(TaskSpecifications.hasPriority(Priority.valueOf(priority)));
+        if (status != null && !status.isBlank())    spec = spec.and(TaskSpecifications.hasStatus(parseStatus(status)));
+        if (priority != null && !priority.isBlank())  spec = spec.and(TaskSpecifications.hasPriority(parsePriority(priority)));
         if (assigneeId != null) spec = spec.and(TaskSpecifications.hasAssignee(assigneeId));
         if (search != null && !search.isBlank()) spec = spec.and(TaskSpecifications.titleContains(search));
 
         Page<Task> page = taskRepository.findAll(spec, pageable);
 
-        return new PagedResponse<>(
-                page.getContent().stream().map(DtoMapper::toTaskResponse).toList(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isLast()
-        );
+        return toPagedResponse(page);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<TaskResponse> getTasks(Long projectId, String status, String priority,
+                                                 Long assigneeId, String search, Pageable pageable) {
+        return getTasks(projectId, status, priority, assigneeId, search, null, true, pageable);
     }
 
     public TaskResponse updateTask(Long taskId, TaskRequest request, Long currentUserId, boolean isAdmin) {
         Task task = findTaskOrThrow(taskId);
         checkTaskAccess(task, currentUserId, isAdmin);
 
-        task.setTitle(request.title());
-        task.setDescription(request.description());
-        task.setStatus(parseStatus(request.status()));
-        task.setPriority(parsePriority(request.priority()));
-        task.setDueDate(request.dueDate());
+        boolean isProjectOwner = task.getProject().isOwnedBy(currentUserId);
 
-        if (request.assigneeId() != null) {
-            User assignee = userRepository.findById(request.assigneeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.assigneeId()));
-            task.setAssignee(assignee);
+        // Field-level authorization:
+        // Assignees who do NOT own the project may ONLY update task status
+        if (!isAdmin && !isProjectOwner) {
+            boolean titleChanged = request.title() != null && !request.title().equals(task.getTitle());
+            boolean descChanged = request.description() != null && !request.description().equals(task.getDescription());
+            boolean priorityChanged = request.priority() != null && !request.priority().equalsIgnoreCase(task.getPriority().name());
+            boolean dueDateChanged = (request.dueDate() != null && !request.dueDate().equals(task.getDueDate())) ||
+                    (request.dueDate() == null && task.getDueDate() != null);
+            boolean assigneeChanged = (request.assigneeId() != null &&
+                    (task.getAssignee() == null || !task.getAssignee().getId().equals(request.assigneeId())));
+
+            if (titleChanged || descChanged || priorityChanged || dueDateChanged || assigneeChanged) {
+                throw new AccessDeniedException("Assignees are only permitted to update task status");
+            }
+            task.setStatus(parseStatus(request.status()));
         } else {
-            task.setAssignee(null);
+            // Project owner or admin can update all fields
+            task.setTitle(request.title());
+            task.setDescription(request.description());
+            task.setStatus(parseStatus(request.status()));
+            task.setPriority(parsePriority(request.priority()));
+            task.setDueDate(request.dueDate());
+
+            if (request.assigneeId() != null) {
+                User assignee = userRepository.findById(request.assigneeId())
+                        .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.assigneeId()));
+                task.setAssignee(assignee);
+            } else {
+                task.setAssignee(null);
+            }
         }
 
         TaskEvent.Type eventType = task.getStatus() == TaskStatus.COMPLETED
@@ -147,7 +198,10 @@ public class TaskService {
 
     public void deleteTask(Long taskId, Long currentUserId, boolean isAdmin) {
         Task task = findTaskOrThrow(taskId);
-        checkTaskAccess(task, currentUserId, isAdmin);
+        boolean isProjectOwner = task.getProject().isOwnedBy(currentUserId);
+        if (!isAdmin && !isProjectOwner) {
+            throw new AccessDeniedException("Only the project owner or an admin can delete a task");
+        }
 
         eventPublisher.publishEvent(new TaskEvent(TaskEvent.Type.DELETED, task));
         taskRepository.delete(task);
@@ -160,12 +214,33 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
     }
 
+    public void checkTaskReadAccess(Task task, Long userId, boolean isAdmin) {
+        if (isAdmin) return;
+        boolean isProjectOwner = task.getProject().isOwnedBy(userId);
+        boolean isAssignee = task.isAssignedTo(userId);
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), userId);
+        if (!isProjectOwner && !isAssignee && !isMember) {
+            throw new AccessDeniedException("You don't have access to this task");
+        }
+    }
+
     private void checkTaskAccess(Task task, Long userId, boolean isAdmin) {
         boolean isProjectOwner = task.getProject().isOwnedBy(userId);
         boolean isAssignee = task.isAssignedTo(userId);
         if (!isAdmin && !isProjectOwner && !isAssignee) {
             throw new AccessDeniedException("You don't have access to this task");
         }
+    }
+
+    private PagedResponse<TaskResponse> toPagedResponse(Page<Task> page) {
+        return new PagedResponse<>(
+                page.getContent().stream().map(DtoMapper::toTaskResponse).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast()
+        );
     }
 
     private TaskStatus parseStatus(String status) {
