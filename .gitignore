@@ -1,0 +1,53 @@
+# ====================================================================
+# Git Ignore for TaskFlow (Java / Maven / Spring Boot)
+# ====================================================================
+
+# Maven build outputs
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Compiled binaries and archives
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+
+# NetBeans
+nbproject/private/
+build/
+dist/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Environment and local overrides
+.env
+.env.local
+
