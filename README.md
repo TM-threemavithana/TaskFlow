@@ -64,7 +64,9 @@ Every file is heavily commented to explain the concept it demonstrates.
 | [`BaseEntity.java`](src/main/java/com/taskflow/entity/BaseEntity.java) | @MappedSuperclass, inheritance (DRY), JPA lifecycle callbacks (@PrePersist, @PreUpdate), equals/hashCode for entities |
 | [`User.java`](src/main/java/com/taskflow/entity/User.java) | @Entity, @Table, BCrypt password hashing, @Enumerated(STRING), JPA no-arg constructor |
 | [`Project.java`](src/main/java/com/taskflow/entity/Project.java) | @ManyToOne, @OneToMany, LAZY fetching, cascade/orphanRemoval, **Composition**, bidirectional relationships |
+| [`ProjectMember.java`](src/main/java/com/taskflow/entity/ProjectMember.java) | Explicit join model for project collaboration, unique compound constraint |
 | [`Task.java`](src/main/java/com/taskflow/entity/Task.java) | @Entity, foreign keys, **Builder Pattern** (creational) |
+| [`Comment.java`](src/main/java/com/taskflow/entity/Comment.java) | @Entity, task discussion comments, foreign keys to Task and User |
 | [`Role.java`](src/main/java/com/taskflow/entity/Role.java) | Enum for security roles |
 
 #### DTO Layer (`com.taskflow.dto`)
@@ -76,8 +78,12 @@ Every file is heavily commented to explain the concept it demonstrates.
 | [`UserResponse.java`](src/main/java/com/taskflow/dto/UserResponse.java) | Records (excludes password - security) |
 | [`ProjectRequest.java`](src/main/java/com/taskflow/dto/ProjectRequest.java) | Records, validation |
 | [`ProjectResponse.java`](src/main/java/com/taskflow/dto/ProjectResponse.java) | Records, denormalized data |
+| [`ProjectMemberRequest.java`](src/main/java/com/taskflow/dto/ProjectMemberRequest.java) | Records, member invitation payload |
+| [`ProjectMemberResponse.java`](src/main/java/com/taskflow/dto/ProjectMemberResponse.java) | Records, membership information |
 | [`TaskRequest.java`](src/main/java/com/taskflow/dto/TaskRequest.java) | Records, optional fields |
 | [`TaskResponse.java`](src/main/java/com/taskflow/dto/TaskResponse.java) | Records |
+| [`CommentRequest.java`](src/main/java/com/taskflow/dto/CommentRequest.java) | Records, Bean Validation |
+| [`CommentResponse.java`](src/main/java/com/taskflow/dto/CommentResponse.java) | Records |
 | [`PagedResponse.java`](src/main/java/com/taskflow/dto/PagedResponse.java) | **Generics** (`PagedResponse<T>`) |
 | [`DtoMapper.java`](src/main/java/com/taskflow/dto/DtoMapper.java) | **Adapter Pattern** (structural): Entity ↔ DTO conversion |
 
@@ -85,14 +91,17 @@ Every file is heavily commented to explain the concept it demonstrates.
 | File | Concepts |
 |------|----------|
 | [`UserRepository.java`](src/main/java/com/taskflow/repository/UserRepository.java) | Spring Data JPA, derived queries, **Optional**, interface-based repositories |
-| [`ProjectRepository.java`](src/main/java/com/taskflow/repository/ProjectRepository.java) | JPQL custom queries, Pageable |
+| [`ProjectRepository.java`](src/main/java/com/taskflow/repository/ProjectRepository.java) | JPQL custom queries, Pageable, accessible project filtering |
+| [`ProjectMemberRepository.java`](src/main/java/com/taskflow/repository/ProjectMemberRepository.java) | Collaboration lookups, existence checks, set projections |
 | [`TaskRepository.java`](src/main/java/com/taskflow/repository/TaskRepository.java) | JpaSpecificationExecutor for dynamic queries |
+| [`CommentRepository.java`](src/main/java/com/taskflow/repository/CommentRepository.java) | Chronological sorting, task-scoped pagination |
 
 #### Service Layer (`com.taskflow.service`)
 | File | Concepts |
 |------|----------|
-| [`ProjectService.java`](src/main/java/com/taskflow/service/ProjectService.java) | @Service, @Transactional, layered architecture, ownership checks, pagination |
-| [`TaskService.java`](src/main/java/com/taskflow/service/TaskService.java) | Builder Pattern usage, **Observer Pattern** (event publishing), **Strategy Pattern** (specifications) |
+| [`ProjectService.java`](src/main/java/com/taskflow/service/ProjectService.java) | @Service, @Transactional, layered architecture, ownership checks, member management |
+| [`TaskService.java`](src/main/java/com/taskflow/service/TaskService.java) | Builder Pattern usage, **Observer Pattern** (event publishing), **Strategy Pattern** (specifications), field-level authorization |
+| [`CommentService.java`](src/main/java/com/taskflow/service/CommentService.java) | Comment creation, moderation rules, task-level access control |
 | [`UserService.java`](src/main/java/com/taskflow/service/UserService.java) | Streams, method references, Single Responsibility |
 
 #### Specification (`com.taskflow.specification`)
@@ -105,8 +114,9 @@ Every file is heavily commented to explain the concept it demonstrates.
 |------|----------|
 | [`AuthController.java`](src/main/java/com/taskflow/controller/AuthController.java) | @RestController, @Valid, HTTP status codes, Swagger annotations |
 | [`UserController.java`](src/main/java/com/taskflow/controller/UserController.java) | @AuthenticationPrincipal, @PreAuthorize (method-level security) |
-| [`ProjectController.java`](src/main/java/com/taskflow/controller/ProjectController.java) | CRUD endpoints, @PageableDefault, pagination |
-| [`TaskController.java`](src/main/java/com/taskflow/controller/TaskController.java) | Filtering, sorting, pagination via query parameters |
+| [`ProjectController.java`](src/main/java/com/taskflow/controller/ProjectController.java) | CRUD endpoints, project membership endpoints, @PageableDefault, pagination |
+| [`TaskController.java`](src/main/java/com/taskflow/controller/TaskController.java) | Filtering, sorting, pagination via query parameters, field-level auth |
+| [`CommentController.java`](src/main/java/com/taskflow/controller/CommentController.java) | Task comment creation, retrieval, and deletion endpoints |
 
 #### Exception Handling (`com.taskflow.exception`)
 | File | Concepts |
@@ -147,19 +157,28 @@ Every file is heavily commented to explain the concept it demonstrates.
 
 | File | Concepts |
 |------|----------|
-| [`application.properties`](src/main/resources/application.properties) | PostgreSQL config, JPA, Flyway, JWT, Swagger |
+| [`application.properties`](src/main/resources/application.properties) | PostgreSQL config, JPA, Flyway, JWT, Swagger, env var secret injection |
 | [`application-h2.properties`](src/main/resources/application-h2.properties) | Spring Profiles, H2 in-memory database |
 | [`V1__create_core_tables.sql`](src/main/resources/db/migration/V1__create_core_tables.sql) | Flyway migration, DDL, foreign keys, constraints |
 | [`V2__add_indexes.sql`](src/main/resources/db/migration/V2__add_indexes.sql) | Flyway schema evolution, database indexes |
+| [`V3__create_comments_table.sql`](src/main/resources/db/migration/V3__create_comments_table.sql) | Flyway migration for task comments table & indexes |
+| [`V4__create_project_members_table.sql`](src/main/resources/db/migration/V4__create_project_members_table.sql) | Flyway migration for project collaboration & membership |
 
 ### Phase 6: Tests (`src/test`)
 
 | File | Concepts |
 |------|----------|
 | [`ProjectServiceTest.java`](src/test/java/com/taskflow/service/ProjectServiceTest.java) | JUnit 5, Mockito (@Mock, @InjectMocks, when/verify), nested tests |
-| [`JwtTokenProviderTest.java`](src/test/java/com/taskflow/security/JwtTokenProviderTest.java) | Unit testing JWT generation/validation |
-| [`PatternTests.java`](src/test/java/com/taskflow/pattern/PatternTests.java) | Testing design pattern implementations |
-| [`ApiIntegrationTest.java`](src/test/java/com/taskflow/integration/ApiIntegrationTest.java) | @SpringBootTest, MockMvc, full request flow, H2 |
+| [`ProjectMemberServiceTest.java`](src/test/java/com/taskflow/service/ProjectMemberServiceTest.java) | Unit tests for project membership addition, listing, deletion, and constraints |
+| [`TaskServiceTest.java`](src/test/java/com/taskflow/service/TaskServiceTest.java) | Unit testing task CRUD, assignee field-level rules, domain events, permissions |
+| [`CommentServiceTest.java`](src/test/java/com/taskflow/service/CommentServiceTest.java) | Unit testing comment lifecycle, access control, and author/owner moderation |
+| [`JwtTokenProviderTest.java`](src/test/java/com/taskflow/security/JwtTokenProviderTest.java) | Unit testing JWT generation, expiration, claims, and HMAC-SHA256 signature verification |
+| [`PatternTests.java`](src/test/java/com/taskflow/pattern/PatternTests.java) | Testing design pattern implementations (Strategy, Factory, Decorator, Command, Template) |
+| [`ApiIntegrationTest.java`](src/test/java/com/taskflow/integration/ApiIntegrationTest.java) | @SpringBootTest, MockMvc, full auth & API request flow |
+| [`SecurityAuthorizationIntegrationTest.java`](src/test/java/com/taskflow/integration/SecurityAuthorizationIntegrationTest.java) | Integration tests preventing IDOR/BOLA across private projects, tasks, and updates |
+| [`CommentIntegrationTest.java`](src/test/java/com/taskflow/integration/CommentIntegrationTest.java) | End-to-end integration tests for task comments |
+| [`ProjectMembershipIntegrationTest.java`](src/test/java/com/taskflow/integration/ProjectMembershipIntegrationTest.java) | End-to-end integration tests for project membership and collaborator access |
+| [`PostgresContainerIntegrationTest.java`](src/test/java/com/taskflow/integration/PostgresContainerIntegrationTest.java) | Testcontainers PostgreSQL integration test verifying real Postgres migrations, JPA & foreign keys |
 
 ### Phase 7: DevOps
 
@@ -189,23 +208,34 @@ Every file is heavily commented to explain the concept it demonstrates.
 
 ## 📚 API Endpoints
 
+### Authentication Legend:
+- ❌ **Public (No Auth Required)**: Open to unauthenticated clients (e.g. registration and login).
+- ✅ **Authenticated User**: Requires valid JWT token in the `Authorization: Bearer <token>` header.
+- 🔑 **Admin Only**: Requires `ROLE_ADMIN`.
+
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | `/api/auth/register` | ❌ | Register a new user |
-| POST | `/api/auth/login` | ❌ | Login and get JWT |
+| POST | `/api/auth/register` | ❌ Public | Register a new user account |
+| POST | `/api/auth/login` | ❌ Public | Login with credentials and receive a JWT token |
 | GET | `/api/users/me` | ✅ | Get current user profile |
 | GET | `/api/users/{id}` | ✅ | Get user by ID |
-| GET | `/api/users` | 🔑 Admin | List all users |
-| POST | `/api/projects` | ✅ | Create project |
-| GET | `/api/projects` | ✅ | List my projects (paginated) |
-| GET | `/api/projects/{id}` | ✅ | Get project by ID |
-| PUT | `/api/projects/{id}` | ✅ Owner/Admin | Update project |
-| DELETE | `/api/projects/{id}` | ✅ Owner/Admin | Delete project |
-| POST | `/api/tasks` | ✅ | Create task |
-| GET | `/api/tasks` | ✅ | List tasks (filtered/sorted/paginated) |
-| GET | `/api/tasks/{id}` | ✅ | Get task by ID |
-| PUT | `/api/tasks/{id}` | ✅ Owner/Assignee/Admin | Update task |
-| DELETE | `/api/tasks/{id}` | ✅ Owner/Assignee/Admin | Delete task |
+| GET | `/api/users` | 🔑 Admin | List all registered users |
+| POST | `/api/projects` | ✅ | Create a new project (caller becomes owner) |
+| GET | `/api/projects` | ✅ | List accessible projects (owned or member, paginated) |
+| GET | `/api/projects/{id}` | ✅ Owner/Member/Admin | Get project by ID |
+| PUT | `/api/projects/{id}` | ✅ Owner/Admin | Update project name and description |
+| DELETE | `/api/projects/{id}` | ✅ Owner/Admin | Delete project (cascades tasks, comments, members) |
+| POST | `/api/projects/{id}/members` | ✅ Owner/Admin | Add a collaborator/member to project |
+| GET | `/api/projects/{id}/members` | ✅ Owner/Member/Admin | List members of a project |
+| DELETE | `/api/projects/{id}/members/{userId}` | ✅ Owner/Admin | Remove a collaborator from project |
+| POST | `/api/tasks` | ✅ Owner/Admin | Create task in project |
+| GET | `/api/tasks` | ✅ | List accessible tasks (filtered/sorted/paginated) |
+| GET | `/api/tasks/{id}` | ✅ Owner/Member/Assignee/Admin | Get task by ID |
+| PUT | `/api/tasks/{id}` | ✅ Owner/Assignee/Admin | Update task (Assignees: status only; Owner/Admin: all fields) |
+| DELETE | `/api/tasks/{id}` | ✅ Owner/Admin | Delete task |
+| POST | `/api/tasks/{id}/comments` | ✅ Owner/Member/Assignee/Admin | Post a comment on a task |
+| GET | `/api/tasks/{id}/comments` | ✅ Owner/Member/Assignee/Admin | Get all comments on a task |
+| DELETE | `/api/comments/{id}` | ✅ Author/Owner/Admin | Delete comment (Author or Project Owner moderation) |
 
 ### Task Filtering Parameters
 ```
@@ -224,4 +254,44 @@ GET /api/tasks?projectId=1&status=TODO&priority=HIGH&assigneeId=2&search=login&p
 - **BCrypt** (password hashing)
 - **SpringDoc OpenAPI** (Swagger UI)
 - **JUnit 5 + Mockito** (testing)
+- **Testcontainers** (isolated PostgreSQL integration testing)
 - **Docker + Docker Compose** (containerization)
+
+---
+
+## 🔐 Environment Configuration
+
+Create a local `.env` file before running with Docker or in production (refer to [`.env.example`](.env.example)):
+
+```bash
+# Database Configuration
+POSTGRES_DB=taskflow
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+
+# JWT Security (Must be at least 256-bit / 32 bytes)
+APP_JWT_SECRET=your_minimum_32_character_production_jwt_signing_secret_here!
+APP_JWT_EXPIRATION_MS=86400000
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run full automated test suite (Unit + Integration tests)
+mvn test
+
+# Run specific test classes
+mvn test -Dtest=TaskServiceTest
+mvn test -Dtest=SecurityAuthorizationIntegrationTest
+mvn test -Dtest=ProjectMembershipIntegrationTest
+mvn test -Dtest=PostgresContainerIntegrationTest
+```
+
+---
+
+## 📌 Known Limitations & Environment Requirements
+
+- **Docker Desktop**: The `PostgresContainerIntegrationTest` dynamically verifies whether a local Docker daemon is running via Testcontainers. If Docker is not started or running in the local OS, the test is cleanly skipped while all remaining 91 tests execute and pass.
+- **Stateless Auth**: TaskFlow uses stateless JWT authentication. Invalidation prior to expiration is handled via secret rotation or token expiry (`APP_JWT_EXPIRATION_MS`).
