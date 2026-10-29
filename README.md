@@ -7,6 +7,11 @@ Built to teach OOP, Java fundamentals, design patterns, and enterprise backend d
 
 ## 🚀 Quick Start
 
+### ⚙️ Prerequisites
+- **Java Development Kit (JDK)**: 17 LTS (Java 17+ compatible)
+- **Apache Maven**: 3.8+
+- **Docker & Docker Compose**: (Optional for H2 in-memory mode; required for PostgreSQL and Testcontainers)
+
 ### Run without PostgreSQL (H2 in-memory database)
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=h2
@@ -240,6 +245,73 @@ Every file is heavily commented to explain the concept it demonstrates.
 ### Task Filtering Parameters
 ```
 GET /api/tasks?projectId=1&status=TODO&priority=HIGH&assigneeId=2&search=login&page=0&size=10&sort=dueDate,asc
+```
+
+### 💡 Representative API Request Examples
+
+#### 1. Register a New User (Public)
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice Developer", "email": "alice@example.com", "password": "Password123!"}'
+```
+
+#### 2. Login to Obtain JWT Token (Public)
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "alice@example.com", "password": "Password123!"}'
+```
+*Response*:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "type": "Bearer",
+  "userId": 1,
+  "email": "alice@example.com",
+  "name": "Alice Developer",
+  "role": "USER"
+}
+```
+
+#### 3. Create a Project (Authenticated)
+```bash
+curl -X POST http://localhost:8080/api/projects \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Website Redesign", "description": "Revamp marketing portal"}'
+```
+
+#### 4. Add Collaborator to Project (Project Owner / Admin)
+```bash
+curl -X POST http://localhost:8080/api/projects/1/members \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"userId": 2}'
+```
+
+#### 5. Create a Task in Project (Project Owner / Admin)
+```bash
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Build Authentication Flow",
+    "description": "Implement JWT and role checks",
+    "projectId": 1,
+    "status": "TODO",
+    "priority": "HIGH",
+    "dueDate": "2026-12-01",
+    "assigneeId": 2
+  }'
+```
+
+#### 6. Post a Comment on Task (Owner / Member / Assignee / Admin)
+```bash
+curl -X POST http://localhost:8080/api/tasks/1/comments \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "PR is open and ready for code review."}'
 ```
 
 ---
