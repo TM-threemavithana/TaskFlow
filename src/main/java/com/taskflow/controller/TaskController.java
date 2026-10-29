@@ -47,8 +47,11 @@ public class TaskController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a task by ID")
-    public ResponseEntity<TaskResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(taskService.getTask(id));
+    public ResponseEntity<TaskResponse> getById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal SecurityUser principal) {
+        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        return ResponseEntity.ok(taskService.getTask(id, principal.getUserId(), isAdmin));
     }
 
     @GetMapping
@@ -59,8 +62,11 @@ public class TaskController {
             @Parameter(description = "Filter by priority (LOW, MEDIUM, HIGH)") @RequestParam(required = false) String priority,
             @Parameter(description = "Filter by assignee user ID") @RequestParam(required = false) Long assigneeId,
             @Parameter(description = "Search in task title") @RequestParam(required = false) String search,
+            @AuthenticationPrincipal SecurityUser principal,
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-        return ResponseEntity.ok(taskService.getTasks(projectId, status, priority, assigneeId, search, pageable));
+        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        return ResponseEntity.ok(taskService.getTasks(projectId, status, priority, assigneeId, search,
+                principal.getUserId(), isAdmin, pageable));
     }
 
     @PutMapping("/{id}")

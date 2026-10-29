@@ -46,8 +46,11 @@ public class ProjectController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a project by ID")
-    public ResponseEntity<ProjectResponse> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(projectService.getProject(id));
+    public ResponseEntity<ProjectResponse> getById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal SecurityUser principal) {
+        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        return ResponseEntity.ok(projectService.getProject(id, principal.getUserId(), isAdmin));
     }
 
     /**

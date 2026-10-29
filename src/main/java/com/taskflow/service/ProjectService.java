@@ -61,7 +61,15 @@ public class ProjectService {
         return DtoMapper.toProjectResponse(saved);
     }
 
-    /** Read one project. readOnly=true is a Hibernate optimization for queries: no dirty checking. */
+    /** Read one project with authorization check. */
+    @Transactional(readOnly = true)
+    public ProjectResponse getProject(Long id, Long currentUserId, boolean isAdmin) {
+        Project project = findProjectOrThrow(id);
+        checkProjectAccess(project, currentUserId, isAdmin);
+        return DtoMapper.toProjectResponse(project);
+    }
+
+    /** Read one project without user context (internal / legacy use). */
     @Transactional(readOnly = true)
     public ProjectResponse getProject(Long id) {
         Project project = findProjectOrThrow(id);
@@ -99,6 +107,12 @@ public class ProjectService {
     private Project findProjectOrThrow(Long id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
+    }
+
+    public void checkProjectAccess(Project project, Long userId, boolean isAdmin) {
+        if (!isAdmin && !project.isOwnedBy(userId)) {
+            throw new AccessDeniedException("You do not have access to this project");
+        }
     }
 
     private void checkOwnership(Project project, Long userId, boolean isAdmin) {
