@@ -1,7 +1,10 @@
 # TaskFlow 📋
 
-A **learning project** that evolves from plain Java classes to a full-stack Spring Boot 3 REST API.
-Built to teach OOP, Java fundamentals, design patterns, and enterprise backend development.
+A modular Task and Project Management REST API built with **Spring Boot 3** and **Java 17**.
+
+The service implements core backend architecture patterns, including composable dynamic queries via Spring Data JPA Specifications, stateless authentication via **Spring Security 6** and **JWT**, automated database schema versioning with **Flyway**, relational persistence with **PostgreSQL**, and automated integration testing using **Testcontainers**.
+
+Automated test suites (11 test classes covering unit, security authorization, and database integration tests) verify service business logic, endpoint access controls, and containerized PostgreSQL persistence.
 
 ---
 
